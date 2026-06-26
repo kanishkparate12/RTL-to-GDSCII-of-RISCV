@@ -41,9 +41,9 @@ report_area   > ./report_area.rpt
 report_qor    > ./report_qor.rpt
 
 #Outputs
-write_hdl > ./i2c_netlist.v
-write_sdc > ./i2c_sdc.sdc
+write_hdl > ./riscv_netlist.v
+write_sdc > ./riscv_sdc.sdc
 
 write_sdf -timescale ns -nonegchecks -recrem split -edges check_edge  -setuphold split > outputs/delays.sdf
 
-write_do_lec -golden_design rtl -revised_design i2c_netlist_lec.v > rtl_to_final.tcl
+write_do_lec -golden_design rtl -revised_design riscv_netlist_lec.v > rtl_to_final.tcl
