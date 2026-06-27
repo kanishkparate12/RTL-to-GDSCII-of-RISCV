@@ -39,6 +39,7 @@ report_timing > ./report_timing.rpt
 report_power  > ./report_power.rpt
 report_area   > ./report_area.rpt
 report_qor    > ./report_qor.rpt
+report_clock_gating.rpt  > ./report_clock_gating.rpt
 
 #Outputs
 write_hdl > ./riscv_netlist.v
