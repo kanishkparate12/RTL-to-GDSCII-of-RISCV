@@ -183,7 +183,7 @@ The repository also includes screenshots from the Cadence Genus GUI
 showing the synthesized design, implementation statistics and generated
 reports.
 
-``` text
+``` 
 Synthesis/Reports/gui_show.png
 ```
 
