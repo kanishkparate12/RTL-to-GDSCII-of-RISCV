@@ -1,13 +1,6 @@
-<div align="center">
-
 # RTL-to-GDSII Implementation of a Single-Cycle RV32I RISC-V Processor
 
 *A complete ASIC implementation flow — from Verilog RTL to GDSII layout.*
-
-![Status](https://img.shields.io/badge/status-in--progress-yellow)
-![ISA](https://img.shields.io/badge/ISA-RV32I-blue)
-![Tools](https://img.shields.io/badge/tools-Cadence%20Genus%20%7C%20Innovus%20%7C%20Tempus-informational)
-![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
 </div>
 
