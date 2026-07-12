@@ -221,6 +221,7 @@ Future updates to this repository will document each stage through final GDSII l
 
 ## Repository Structure
 
+```
 .
 ├── Synthesis/
 │   ├── RTL/                        # Verilog RTL source files
@@ -243,6 +244,7 @@ Future updates to this repository will document each stage through final GDSII l
 │       ├── report_qor.rpt / report_qor_ple.rpt
 │       └── report_timing.rpt / report_timing_ple.rpt
 └── README.md
+```
 
 ## License
 
