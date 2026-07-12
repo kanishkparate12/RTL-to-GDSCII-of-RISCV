@@ -16,6 +16,7 @@ This repository documents the end-to-end implementation of a **32-bit single-cyc
 |---|---|:---:|
 | RTL Design | Verilog HDL | Complete |
 | Logic Synthesis | Cadence Genus | Complete |
+| Physical-Aware Synthesis (PLE) | Cadence Genus | Complete |
 | Physical Design | Cadence Innovus | Planned |
 | Timing Signoff | Cadence Tempus | Planned |
 | GDSII Generation | Cadence Innovus | Planned |
@@ -26,7 +27,7 @@ This repository documents the end-to-end implementation of a **32-bit single-cyc
 
 ### Overview
 
-The first stage of the ASIC implementation flow converts the synthesizable RTL into a technology-mapped gate-level netlist using **Cadence Genus**. During this stage, the design is optimized to satisfy timing constraints while minimizing area and power.
+The first stage of the ASIC implementation flow converts the synthesizable RTL into a technology-mapped gate-level netlist using **Cadence Genus**. During this stage, the design is optimized to satisfy timing constraints while minimizing area and power, using a **wireload-model (timing library)** area mode.
 
 The synthesis flow includes:
 
@@ -54,13 +55,10 @@ The synthesis flow includes:
 
 | File | Description |
 |---|---|
-| [`genus_script.tcl`](./genus_script.tcl) | Main synthesis script automating the complete logic synthesis flow: reads RTL sources, loads technology libraries and MMMC configuration, applies timing constraints, runs synthesis and optimization, inserts clock gating, generates the synthesized netlist, and exports reports. |
-| [`constraints.sdc`](./constraints.sdc) | Design timing constraints — clock definition and period, input/output delay, driving cell, output loading, and clock uncertainty. Guides Genus in optimizing the design to meet the target operating frequency. |
-| [`mmmc.tcl`](./mmmc.tcl) | Multi-Mode Multi-Corner analysis environment — library sets, RC corners, delay corners, constraint modes, and analysis views. Enables timing verification under the specified implementation corner. |
-
----
-
-## Synthesis Results
+| [`genus_script.tcl`](./Synthesis/genus_script.tcl) | Main logic-synthesis script: reads RTL sources, loads technology libraries and MMMC configuration, applies timing constraints, runs synthesis and optimization, inserts clock gating, generates the synthesized netlist, and exports reports. |
+| [`genus_ple_script.tcl`](./Synthesis/genus_ple_script.tcl) | Physical-aware synthesis script run in **PLE (physical-layout-estimation / spatial interconnect) mode**, giving area, timing, and power estimates that account for placement-aware wire parasitics instead of a generic wireload model. |
+| [`constraints.sdc`](./Synthesis/constraints.sdc) | Design timing constraints — clock definition and period, input/output delay, driving cell, output loading, and clock uncertainty. Shared by both synthesis flows. |
+| [`mmmc.tcl`](./Synthesis/mmmc.tcl) | Multi-Mode Multi-Corner analysis environment — library sets, RC corners, delay corners, constraint modes, and analysis views. |
 
 ### Design Summary
 
@@ -107,13 +105,82 @@ The synthesis flow includes:
 
 ---
 
+## Stage 1b — Physical-Aware Synthesis (PLE)
+
+### Overview
+
+This stage re-runs synthesis in **PLE (Physical Layout Estimation) mode**, using a **spatial interconnect mode** and **physical-library area mode** instead of a generic wireload model. Genus estimates placement, physical cell area, and a floorplan utilization figure, giving a much closer preview of what the design will look like after physical design in Innovus.
+
+### Design Summary
+
+| Metric | Result |
+|---|---:|
+| Leaf Cell Count | **4,972** |
+| Sequential Cells | **1,024** |
+| Combinational Cells | **3,948** |
+| Cell Area | **3,806.631 µm²** |
+| Net Area | **1,340.804 µm²** |
+| Total Area (Cell + Net) | **5,147.435 µm²** |
+| Floorplan Utilization | **70.34%** |
+
+### Timing Analysis
+
+| Metric | Result |
+|---|---:|
+| Total Negative Slack | **0 ns** |
+| Violating Paths | **0** |
+| Worst Slack | **Positive** |
+
+### Power Analysis
+
+| Component | Result |
+|---|---:|
+| Leakage Power | **895.489 nW** |
+| Internal Power | **676.637 µW** |
+| Switching Power | **64.103 µW** |
+| Total Power | **741.636 µW** |
+
+### Clock Gating
+
+| Metric | Result |
+|---|---:|
+| Clock Gating Cells | **0** |
+| Total Flip-Flops | **1,024** |
+| Clock-Gated Flip-Flops | **0 (0.00%)** |
+| Ungated Flip-Flops | **1,024 (100.00%)** |
+
+> **Observation:** No clock-gating enables were inferred in the PLE run ("Enable not found" for all 1,024 flops), so all sequential elements toggle every cycle — this is the main driver of the higher power figure below.
+
+---
+
+## Logical vs. Physical Synthesis — Comparison
+
+| Metric | Logic Synthesis | Physical-Aware Synthesis (PLE) | Δ |
+|---|---:|---:|---:|
+| Leaf Cell Count | 4,892 | 4,972 | +80 |
+| Sequential Cells | 1,055 | 1,024 | −31 |
+| Combinational Cells | 3,837 | 3,948 | +111 |
+| Cell Area | 13,331.160 µm² | 3,806.631 µm² | −9,524.5 µm²* |
+| Net Area | 0.000 µm² (not modeled) | 1,340.804 µm² | +1,340.8 µm² |
+| Total Area | 13,331.160 µm² | 5,147.435 µm² | −8,183.7 µm²* |
+| Total Power | 85.100 µW | 741.636 µW | +656.5 µW |
+| Clock Gating Cells | 31 | 0 | −31 |
+| Clock-Gated Flip-Flops | 992 (96.88%) | 0 (0.00%) | −992 |
+| Timing Violations | 0 | 0 | — |
+
+\* *Area is not directly comparable: the logic-synthesis run reports area against the generic timing library (wireload model, no net area), while the PLE run reports area against the physical library with spatial interconnect and explicit net area. The PLE numbers are the more realistic pre-placement estimate.*
+
+> **Observation:** The two runs use different area/power models on purpose — logic synthesis targets timing closure against a generic wireload model, while PLE mode trades that generic model for placement-aware (spatial) parasitics and a physical-library area view. The most notable functional difference is clock gating: it was fully inferred in the logic-synthesis run (96.88% of flops gated) but not inferred at all in the PLE run, which is the primary reason PLE reports substantially higher total power. Both runs close timing cleanly with zero violations. This gap is expected to narrow once the design goes through explicit clock-tree synthesis and gating-aware optimization in the Physical Design stage.
+
+---
+
 ## Quality of Results (QoR)
 
-- Successful technology mapping
-- Positive timing slack
-- Zero timing violations
+- Successful technology mapping (logic and physical-aware synthesis)
+- Positive timing slack in both flows
+- Zero timing violations in both flows
 - Optimized standard-cell area
-- Automatic clock-gating insertion
+- Automatic clock-gating insertion in the logic-synthesis flow
 - Gate-level netlist generation ready for physical design
 
 ---
@@ -122,8 +189,16 @@ The synthesis flow includes:
 
 Screenshots from the Cadence Genus GUI showing the synthesized design, implementation statistics, and generated reports:
 
+**Logic Synthesis**
+
 <p align="center">
-  <img src="Synthesis/Reports/gui_show.png" alt="Cadence Genus GUI showing synthesis results" width="800">
+  <img src="Synthesis/Reports/gui_show.png" alt="Cadence Genus GUI showing logic synthesis results" width="800">
+</p>
+
+**Physical-Aware Synthesis (PLE)**
+
+<p align="center">
+  <img src="Synthesis/Reports/gui_show_ple.png" alt="Cadence Genus GUI showing physical-aware synthesis results" width="800">
 </p>
 
 ---
@@ -145,3 +220,30 @@ Future updates to this repository will document each stage through final GDSII l
 ---
 
 ## Repository Structure
+
+.
+├── Synthesis/
+│   ├── RTL/                        # Verilog RTL source files
+│   │   ├── RISCV_top.v
+│   │   ├── alu.v
+│   │   ├── control_unit.v
+│   │   ├── decoder.v
+│   │   ├── program_counter.v
+│   │   └── regfile.v
+│   ├── genus_script.tcl            # Logic synthesis script
+│   ├── genus_ple_script.tcl        # Physical-aware (PLE) synthesis script
+│   ├── constraints.sdc             # Timing constraints (SDC)
+│   ├── mmmc.tcl                    # MMMC analysis setup
+│   └── Reports/
+│       ├── gui_show.png            # Logic synthesis GUI screenshot
+│       ├── gui_show_ple.png        # Physical-aware synthesis GUI screenshot
+│       ├── report_area.rpt / report_area_ple.rpt
+│       ├── report_power.rpt / report_power_ple.rpt
+│       ├── report_clock_gating.rpt / report_clock_gating_ple.rpt
+│       ├── report_qor.rpt / report_qor_ple.rpt
+│       └── report_timing.rpt / report_timing_ple.rpt
+└── README.md
+
+## License
+
+This project is licensed under the MIT License — see the [LICENSE](./LICENSE) file for details.
