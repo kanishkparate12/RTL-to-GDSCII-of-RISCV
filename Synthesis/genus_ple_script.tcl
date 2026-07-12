@@ -21,13 +21,15 @@ set_db invs_temp_dir invs_temp_dir
 
 set_db predict_floorplan_enable_during_generic true
 
+set_db lp_insert_clock_gating true
+
 set_db syn_generic_effort medium
 set_db syn_map_effort medium
 set_db syn_opt_effort medium
 
 syn_generic -physical
 syn_map -physical
-#syn_opt -physical
+syn_opt -physical
 
 #reports
 report_timing > ./report_timing_ple.rpt
